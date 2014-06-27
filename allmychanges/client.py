@@ -44,6 +44,8 @@ format_option = click.option(
 @config_option
 @format_option
 def export(format, output, config):
+    """Exports packages from service into the file.
+    """
     config = read_config(config)
     packages = get_packages(config)
 
@@ -66,10 +68,12 @@ def export(format, output, config):
 
 @click.command('import')
 @click.option('--input',
-              help='Output filename. By default, data is read from the stdin.')
+              help='Input filename. By default, data is read from the stdin.')
 @format_option
 @config_option
 def _import(format, input, config):
+    """Import data from file into the service.
+    """
     if input:
         with open(input, 'rb') as f:
             data = f.read()
@@ -86,8 +90,10 @@ def _import(format, input, config):
 @click.argument('package', nargs=-1)
 @config_option
 def add(package, config):
-    """Adds one or more packages where PACKAGE is a string in
-    <namespace>/<package> or <namespace>/<package>/<source> format.
+    """Adds one or more packages.
+
+    Here PACKAGE is a string in <namespace>/<package>
+    or <namespace>/<package>/<source> format.
     """
 
     def parse_package(text):
