@@ -1,0 +1,7 @@
+*.pyc
+/*.egg-info
+/env
+/*.yaml
+/*.csv
+/*.json
+/*.cfg

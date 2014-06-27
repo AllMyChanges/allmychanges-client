@@ -1,0 +1,4 @@
+[allmychanges]
+token = SECRET-TOKEN # take this token at
+                     # http://allmychanges.com/account/token/
+                     # and keep it secret
