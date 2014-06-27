@@ -70,13 +70,6 @@ def export(format, output, config):
 @format_option
 @config_option
 def _import(format, input, config):
-    config = read_config(config)
-
-    packages = get_packages(config)
-    packages = {(item['namespace'],
-                 item['name']): item
-                for item in packages}
-
     if input:
         with open(input, 'rb') as f:
             data = f.read()
@@ -86,7 +79,43 @@ def _import(format, input, config):
     dataset = tablib.Dataset()
     setattr(dataset, format, data)
 
-    for row in dataset.dict:
+    _add_packages(config, dataset.dict)
+
+
+@click.command()
+@click.argument('package', nargs=-1)
+@config_option
+def add(package, config):
+    """Adds one or more packages where PACKAGE is a string in
+    <namespace>/<package> or <namespace>/<package>/<source> format.
+    """
+
+    def parse_package(text):
+        splitted = text.split('/', 2)
+        if len(splitted) == 3:
+            namespace, name, source = splitted
+        else:
+            namespace, name = splitted
+            source = None
+        return dict(namespace=namespace,
+                    name=name,
+                    source=source)
+
+    rows = map(parse_package, package)
+
+    _add_packages(config, rows)
+
+
+def _add_packages(config, data):
+    config = read_config(config)
+
+    packages = get_packages(config)
+    packages = {(item['namespace'],
+                 item['name']): item
+                for item in packages}
+
+
+    for row in data:
         pk = (row['namespace'], row['name'])
             
 
@@ -140,9 +169,11 @@ def _import(format, input, config):
             create_package(config, pk, source)
             click.echo('{0}/{1} was created'.format(*pk))
 
+
 @click.group()
 def main():
     pass
 
 main.add_command(export)
 main.add_command(_import)
+main.add_command(add)

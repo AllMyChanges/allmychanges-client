@@ -35,8 +35,24 @@ will ask you where these sources are. Answer honestly. :)
 
 In some cases, script will try to help you. If somebody
 already added package with such name and namespace, it will
-suggest you the source. Or for python packages, it will
-search different urls on the PyPi's pages.
+suggest you the source. For python and perl packages, it will
+search different urls on the PyPi's pages or metacpan.org
+respectively.
+
+
+Adding one or few packages from command line
+--------------------------------------------
+
+This is also very easy:
+
+    amch add python/clint python/requests perl/Dancer
+
+You could also specify a source url, like that:
+
+    amch add python/Dancer/https://github.com/PerlDancer/Dancer
+
+But if you didn't, service will try to figure out url automatically
+and will suggest it in same way as it does in `import` command.
 
 
 Roadmap
