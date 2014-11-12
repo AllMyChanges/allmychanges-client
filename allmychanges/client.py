@@ -3,9 +3,10 @@ import click
 import tablib
 
 from .config import read_config
-from .api import (get_packages,
-                  create_package,
-                  update_package,
+from .api import (get_changelogs,
+                  create_changelog,
+                  update_changelog,
+                  track_changelog,
                   guess_source)
 
 # first is default
@@ -47,7 +48,7 @@ def export(format, output, config):
     """Exports packages from service into the file.
     """
     config = read_config(config)
-    packages = get_packages(config)
+    changelogs = get_changelogs(config, tracked=True)
 
     fields = ('namespace', 'name', 'source')
 
@@ -55,7 +56,7 @@ def export(format, output, config):
         return [item.get(key)
                 for key in fields]
 
-    data = map(extract_fields, packages)
+    data = map(extract_fields, changelogs)
     table = tablib.Dataset(*data)
     table.headers = fields
     data = getattr(table, format)
@@ -83,7 +84,7 @@ def _import(format, input, config):
     dataset = tablib.Dataset()
     setattr(dataset, format, data)
 
-    _add_packages(config, dataset.dict)
+    _add_changelogs(config, dataset.dict)
 
 
 @click.command()
@@ -109,27 +110,24 @@ def add(package, config):
 
     rows = map(parse_package, package)
 
-    _add_packages(config, rows)
+    _add_changelogs(config, rows)
 
 
-def _add_packages(config, data):
+def _add_changelogs(config, data):
     config = read_config(config)
 
-    packages = get_packages(config)
-    packages = {(item['namespace'],
-                 item['name']): item
-                for item in packages}
-
+    tracked_changelogs = {ch['resource_uri']
+                          for ch in get_changelogs(config, tracked=True)}
 
     for row in data:
         pk = (row['namespace'], row['name'])
-            
+
 
         if row.get('source'):
             source = row.get('source')
         else:
             click.echo('\nNo source for {0}/{1} was given, let\'s try to guess it.'.format(*pk))
-            guesses = guess_source(config, pk)
+            guesses = guess_source(config, namespace=pk[0], name=pk[1])
 
             source = None
 
@@ -166,14 +164,33 @@ def _add_packages(config, data):
                     source = click.prompt('Where could I find sources for {0}/{1}?'.format(*pk),
                                           prompt_suffix='\n> ')
 
-        if pk in packages:
-            package = packages[pk]
-            if source != package['source']:
-                update_package(config, package['resource_uri'], pk, source)
-                click.echo('{0}/{1} was updated'.format(*pk))
+        actions = []
+        changelogs = get_changelogs(config, namespace=pk[0], name=pk[1])
+
+        if changelogs:
+            changelog = changelogs[0]
+            if source != changelog['source']:
+                update_changelog(config,
+                                 changelog,
+                                 namespace=pk[0],
+                                 name=pk[1],
+                                 source=source)
+                actions.append('updated')
+
+            if changelog['resource_uri'] not in tracked_changelogs:
+                track_changelog(config, changelog)
+                actions.append('tracked')
+
         else:
-            create_package(config, pk, source)
-            click.echo('{0}/{1} was created'.format(*pk))
+            changelog = create_changelog(config, pk, source)
+            track_changelog(config, changelog)
+            actions.extend(['created', 'tracked'])
+
+        if actions:
+            click.echo('http://allmychanges.com/p/{namespace}/{name}/ was {actions}'.format(
+                namespace=pk[0],
+                name=pk[1],
+                actions=' and '.join(actions)))
 
 
 @click.group()
