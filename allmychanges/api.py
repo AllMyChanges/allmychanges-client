@@ -1,6 +1,8 @@
-import requests
-from urllib import urlencode
+# coding: utf-8
 
+import requests
+
+from urllib import urlencode
 from .config import get_option
 
 _BASE_URL = 'http://allmychanges.com/v1'
@@ -8,13 +10,15 @@ _BASE_URL = 'http://allmychanges.com/v1'
 
 class ApiError(RuntimeError):
     def __init__(self, message, response):
-        super(ApiError, self).__init__(message)
+        verbose_message = u'{0}: {1}'.format(message, response.content)
+        super(ApiError, self).__init__(verbose_message)
         self.response = response
 
 
 def _call(method, config, handle, data=None):
     token = get_option(config, 'token')
     base_url = get_option(config, 'base_url', _BASE_URL)
+    debug = get_option(config, 'debug')
 
     if handle.startswith('http'):
         url = handle
@@ -26,6 +30,15 @@ def _call(method, config, handle, data=None):
                     headers={'Authorization':
                              'Bearer ' + token},
                     data=data)
+
+    if debug:
+        if response.status_code >= 300:
+            description = response.reason
+        else:
+            description = ''
+        print u'{0} {1} → {2} {3}'.format(
+            method.upper(), url,
+            response.status_code, description).encode('utf-8')
 
     if response.status_code >= 400:
         raise ApiError(response.reason, response)

@@ -1,3 +1,8 @@
+0.4.0 (2014-12-16)
+==================
+
+* Option `debug = true` now could be added to the config to make output more verbose.
+
 0.3.0 (2014-11-12)
 ==================
 
