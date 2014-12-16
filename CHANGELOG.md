@@ -1,3 +1,11 @@
+0.5.0 (2014-12-16)
+==================
+
+* For case when changelog with given URL already exists
+  behaviour was changed. Now a warning is displayed, and
+  changelog is tracked without trying to change it's
+  namespace or name.
+
 0.4.0 (2014-12-16)
 ==================
 
