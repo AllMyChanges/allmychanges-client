@@ -120,14 +120,14 @@ def _add_changelogs(config, data):
                           for ch in get_changelogs(config, tracked=True)}
 
     for row in data:
-        pk = (row['namespace'], row['name'])
+        namespace, name = (row['namespace'], row['name'])
 
 
         if row.get('source'):
             source = row.get('source')
         else:
-            click.echo('\nNo source for {0}/{1} was given, let\'s try to guess it.'.format(*pk))
-            guesses = guess_source(config, namespace=pk[0], name=pk[1])
+            click.echo('\nNo source for {0}/{1} was given, let\'s try to guess it.'.format(namespace, name))
+            guesses = guess_source(config, namespace=namespace, name=name)
 
             source = None
 
@@ -161,40 +161,33 @@ def _add_changelogs(config, data):
                     manually = True
 
                 if manually:
-                    source = click.prompt('Where could I find sources for {0}/{1}?'.format(*pk),
+                    source = click.prompt('Where could I find sources for {0}/{1}?'.format(namespace, name),
                                           prompt_suffix='\n> ')
 
         actions = []
 
-
-        if source:
-            changelogs = get_changelogs(config, source=source)
-        else:
-            changelogs = get_changelogs(config, namespace=pk[0], name=pk[1])
+        changelogs = get_changelogs(config, source=source)
 
         if changelogs:
             changelog = changelogs[0]
-            if source != changelog['source']:
-                update_changelog(config,
-                                 changelog,
-                                 namespace=pk[0],
-                                 name=pk[1],
-                                 source=source)
-                actions.append('updated')
-
             if changelog['resource_uri'] not in tracked_changelogs:
+                if name != changelog['name'] or namespace != changelog['namespace']:
+                    click.echo(('Warning! Changelog with this url already registered '
+                                'under different namespace or name: {0[absolute_uri]}').format(
+                        changelog))
+
                 track_changelog(config, changelog)
                 actions.append('tracked')
 
         else:
-            changelog = create_changelog(config, pk, source)
+            changelog = create_changelog(config, namespace, name, source)
             track_changelog(config, changelog)
             actions.extend(['created', 'tracked'])
 
         if actions:
             click.echo('http://allmychanges.com/p/{namespace}/{name}/ was {actions}'.format(
-                namespace=pk[0],
-                name=pk[1],
+                namespace=namespace,
+                name=name,
                 actions=' and '.join(actions)))
 
 

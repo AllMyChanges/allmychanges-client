@@ -18,7 +18,7 @@ class ApiError(RuntimeError):
 def _call(method, config, handle, data=None):
     token = get_option(config, 'token')
     base_url = get_option(config, 'base_url', _BASE_URL)
-    debug = get_option(config, 'debug')
+    debug = get_option(config, 'debug', False)
 
     if handle.startswith('http'):
         url = handle
@@ -57,10 +57,10 @@ def get_changelogs(config, **params):
     handle = '/changelogs/'
     return _get(config, handle + '?' + urlencode(params))
 
-def create_changelog(config, pk, source):
+def create_changelog(config, namespace, name, source):
     return _post(config, '/changelogs/',
-                 data=dict(namespace=pk[0],
-                           name=pk[1],
+                 data=dict(namespace=namespace,
+                           name=name,
                            source=source))
 
 def update_changelog(config, changelog, namespace, name, source):
