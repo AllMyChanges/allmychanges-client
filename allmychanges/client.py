@@ -165,7 +165,12 @@ def _add_changelogs(config, data):
                                           prompt_suffix='\n> ')
 
         actions = []
-        changelogs = get_changelogs(config, namespace=pk[0], name=pk[1])
+
+
+        if source:
+            changelogs = get_changelogs(config, source=source)
+        else:
+            changelogs = get_changelogs(config, namespace=pk[0], name=pk[1])
 
         if changelogs:
             changelog = changelogs[0]

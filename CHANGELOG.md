@@ -2,6 +2,8 @@
 ==================
 
 * Option `debug = true` now could be added to the config to make output more verbose.
+* Fixed error in data import, which occur when changelog with given source
+  already exists in service under different name or namespace.
 
 0.3.0 (2014-11-12)
 ==================
