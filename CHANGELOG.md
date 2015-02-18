@@ -1,3 +1,13 @@
+0.5.1 (2015-02-18)
+==================
+
+* Fixed data import issue when package with given
+  namespace/name already exists but with different
+  source. In this case we just output a warning
+  and track that package. Probably in future
+  this behaviour will change to asking user
+  what he wants to do in this situation.
+
 0.5.0 (2014-12-16)
 ==================
 
