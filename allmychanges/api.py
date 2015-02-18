@@ -15,6 +15,15 @@ class ApiError(RuntimeError):
         self.response = response
 
 
+class AlreadyExists(RuntimeError):
+    def __init__(self, namespace, name):
+        super(AlreadyExists, self).__init__(
+            'Package {0}/{1} already exists'.format(
+                namespace, name))
+        self.namespace = namespace
+        self.name = name
+
+
 def _call(method, config, handle, data=None):
     token = get_option(config, 'token')
     base_url = get_option(config, 'base_url', _BASE_URL)
@@ -57,11 +66,19 @@ def get_changelogs(config, **params):
     handle = '/changelogs/'
     return _get(config, handle + '?' + urlencode(params))
 
+
 def create_changelog(config, namespace, name, source):
-    return _post(config, '/changelogs/',
-                 data=dict(namespace=namespace,
-                           name=name,
-                           source=source))
+    try:
+        return _post(config, '/changelogs/',
+                     data=dict(namespace=namespace,
+                               name=name,
+                               source=source))
+    except ApiError as e:
+        data = e.response.json()
+        if 'Changelog with this Namespace and Name already exists' in data.get('__all__', [''])[0]:
+            raise AlreadyExists(namespace, name)
+        raise
+
 
 def update_changelog(config, changelog, namespace, name, source):
     return _put(config, changelog['resource_uri'],

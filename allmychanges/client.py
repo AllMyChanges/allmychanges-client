@@ -7,6 +7,7 @@ from .api import (get_changelogs,
                   create_changelog,
                   update_changelog,
                   track_changelog,
+                  AlreadyExists,
                   guess_source)
 
 # first is default
@@ -120,6 +121,8 @@ def _add_changelogs(config, data):
                           for ch in get_changelogs(config, tracked=True)}
 
     for row in data:
+        if not row:
+            continue
         namespace, name = (row['namespace'], row['name'])
 
 
@@ -180,9 +183,17 @@ def _add_changelogs(config, data):
                 actions.append('tracked')
 
         else:
-            changelog = create_changelog(config, namespace, name, source)
+            try:
+                changelog = create_changelog(config, namespace, name, source)
+                actions.extend(['created', 'tracked'])
+            except AlreadyExists:
+                changelog = get_changelogs(config, namespace=namespace, name=name)[0]
+                click.echo(('Warning! Package {0[namespace]}/{0[name]} already registered '
+                            'but have different source: "{0[source]}" instead of "{1}"').format(
+                                changelog, source))
+                actions.append('tracked')
+
             track_changelog(config, changelog)
-            actions.extend(['created', 'tracked'])
 
         if actions:
             click.echo('http://allmychanges.com/p/{namespace}/{name}/ was {actions}'.format(
