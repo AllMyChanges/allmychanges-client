@@ -54,6 +54,12 @@ You could also specify a source url, like that:
 But if you didn't, service will try to figure out url automatically
 and will suggest it in same way as it does in `import` command.
 
+Using amch to import requirements.txt
+-------------------------------------
+
+    cat requirements.txt | grep -v '^-e' | sed -e 's/\([^=]\+\).*/python,\1/' -e '1 i\namespace,name' > data
+    amch import --input data
+
 
 Roadmap
 -------

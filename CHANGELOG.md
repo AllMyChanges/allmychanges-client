@@ -1,3 +1,11 @@
+0.6.0 (2015-02-23)
+==================
+
+* Improved and fixed process of adding or tracking
+  packages when importing data.
+* Now you can skip package instead of specifying
+  its source URL, during the import.
+
 0.5.1 (2015-02-18)
 ==================
 

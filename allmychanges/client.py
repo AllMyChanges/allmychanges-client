@@ -165,8 +165,11 @@ def _add_changelogs(config, data):
                 manually = True
 
             if manually:
-                source = click.prompt('Where could I find sources for {0}/{1}?'.format(namespace, name),
-                                      prompt_suffix='\n> ')
+                source = click.prompt(
+                    ('Where could I find sources for {0}/{1}? '
+                     '(type "skip" to skip this package)')
+                    .format(namespace, name),
+                    prompt_suffix='\n> ')
         return source
 
 
@@ -206,12 +209,15 @@ def _add_changelogs(config, data):
         if changelog is None:
             if source is None:
                 source = ask_about_source(namespace, name)
-                changelog = create_changelog(
-                    config, namespace, name, source)
-                actions.append('created')
+                if source == 'skip':
+                    actions.append('skipped')
+                else:
+                    changelog = create_changelog(
+                        config, namespace, name, source)
+                    actions.append('created')
 
-                track_changelog(config, changelog)
-                actions.append('tracked')
+                    track_changelog(config, changelog)
+                    actions.append('tracked')
         else:
             if is_tracked(changelog):
                 if source and source != changelog.source:
