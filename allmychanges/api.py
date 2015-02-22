@@ -94,5 +94,5 @@ def track_changelog(config, changelog):
 def guess_source(config, namespace, name):
     response = _get(config, '/search-autocomplete/?' + urlencode(
         dict(q='{0}/{1}'.format(namespace, name))))
-    return [item['name']
+    return [item['source']
             for item in response['results']]

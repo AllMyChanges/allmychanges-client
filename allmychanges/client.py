@@ -1,3 +1,4 @@
+# coding: utf-8
 import sys
 import click
 import tablib
@@ -5,9 +6,7 @@ import tablib
 from .config import read_config
 from .api import (get_changelogs,
                   create_changelog,
-                  update_changelog,
                   track_changelog,
-                  AlreadyExists,
                   guess_source)
 
 # first is default
@@ -117,83 +116,120 @@ def add(package, config):
 def _add_changelogs(config, data):
     config = read_config(config)
 
-    tracked_changelogs = {ch['resource_uri']
-                          for ch in get_changelogs(config, tracked=True)}
+    tracked_changelogs = get_changelogs(config, tracked=True)
+    tracked_changelogs = dict(
+        ((ch['namespace'], ch['name']), ch)
+        for ch in tracked_changelogs)
+
+    def is_tracked(changelog):
+        return (changelog['namespace'],
+                changelog['name']) in tracked_changelogs
+
+    def ask_about_source(namespace, name):
+        click.echo(
+            ('\nNo source for {0}/{1} was given, '
+             'let\'s try to guess it.').format(
+                 namespace, name))
+        guesses = guess_source(
+            config, namespace=namespace, name=name)
+
+        source = None
+        while not source:
+            manually = False
+
+            if guesses:
+                click.echo('Here is what I\'ve got:')
+                for idx, guess in enumerate(
+                        guesses, start=1):
+                    click.echo('{0}) {1}'.format(idx, guess))
+                click.echo('0) enter manually')
+
+                def validate_choice(value):
+                    try:
+                        value = int(value)
+                    except ValueError:
+                        raise click.BadParameter('You entered invalid number.')
+
+                    if value < 0 or value > len(guesses):
+                        raise click.BadParameter('Please, make a correct choice.')
+
+                    return value
+
+                choice = click.prompt('Please, select option [0-{0}]'.format(len(guesses)),
+                                      value_proc=validate_choice)
+                if choice == 0:
+                    manually = True
+                else:
+                    source = guesses[choice - 1]
+            else:
+                manually = True
+
+            if manually:
+                source = click.prompt('Where could I find sources for {0}/{1}?'.format(namespace, name),
+                                      prompt_suffix='\n> ')
+        return source
+
 
     for row in data:
         if not row:
             continue
+        changelog = None
         namespace, name = (row['namespace'], row['name'])
+        source = row.get('source')
+        # значит, логика добавления changelog такая:
+        # во входных данных всегда должны присутствовать namespace и name
+        # так как это уникальный идентификатор пакета в allmychanges.
+        # Поле source опционально, если оно есть, то производятся
+        # дополнительные проверки и выводятся дополнительные предупреждения
+        # со стороны allmychanges пакет может быть в трех состояниях:
+        # 1. отсутствует
+        #    - если source не указан, то запустить guesser и попросить выбрать URL
+        #    - добавить пакет
+        # 2. есть, но не затрекан
+        #    - если source указан и не такой как в allmychanges, показать предупреждение
+        #    - затрекать
+        # 3. есть и затрекан
+        #    - если source указан, то  проверить, что source затреканного такой же
+        #      и если нет, то вывести предупреждение
 
-
-        if row.get('source'):
-            source = row.get('source')
+        # searching changelog in allmychange's database
+        changelogs = get_changelogs(config,
+                                    namespace=namespace,
+                                    name=name)
+        if changelogs:
+            changelog = changelogs[0]
         else:
-            click.echo('\nNo source for {0}/{1} was given, let\'s try to guess it.'.format(namespace, name))
-            guesses = guess_source(config, namespace=namespace, name=name)
-
-            source = None
-
-            while not source:
-                manually = False
-
-                if guesses:
-                    click.echo('Here is what I\'ve got:')
-                    for idx, guess in enumerate(guesses, start=1):
-                        click.echo('{0}) {1}'.format(idx, guess))
-                    click.echo('0) enter manually')
-
-                    def validate_choice(value):
-                        try:
-                            value = int(value)
-                        except ValueError:
-                            raise click.BadParameter('You entered invalid number.')
-
-                        if value < 0 or value > len(guesses):
-                            raise click.BadParameter('Please, make a correct choice.')
-
-                        return value
-
-                    choice = click.prompt('Please, select option [0-{0}]'.format(len(guesses)),
-                                          value_proc=validate_choice)
-                    if choice == 0:
-                        manually = True
-                    else:
-                        source = guesses[choice - 1]
-                else:
-                    manually = True
-
-                if manually:
-                    source = click.prompt('Where could I find sources for {0}/{1}?'.format(namespace, name),
-                                          prompt_suffix='\n> ')
+            changelog = None
 
         actions = []
 
-        changelogs = get_changelogs(config, source=source)
-
-        if changelogs:
-            changelog = changelogs[0]
-            if changelog['resource_uri'] not in tracked_changelogs:
-                if name != changelog['name'] or namespace != changelog['namespace']:
-                    click.echo(('Warning! Changelog with this url already registered '
-                                'under different namespace or name: {0[absolute_uri]}').format(
-                        changelog))
+        if changelog is None:
+            if source is None:
+                source = ask_about_source(namespace, name)
+                changelog = create_changelog(
+                    config, namespace, name, source)
+                actions.append('created')
 
                 track_changelog(config, changelog)
                 actions.append('tracked')
-
         else:
-            try:
-                changelog = create_changelog(config, namespace, name, source)
-                actions.extend(['created', 'tracked'])
-            except AlreadyExists:
-                changelog = get_changelogs(config, namespace=namespace, name=name)[0]
-                click.echo(('Warning! Package {0[namespace]}/{0[name]} already registered '
-                            'but have different source: "{0[source]}" instead of "{1}"').format(
-                                changelog, source))
+            if is_tracked(changelog):
+                if source and source != changelog.source:
+                    click.echo(
+                        ('Warning! You already tracking package '
+                         '{0[namespace]}/{0[name]}, '
+                         'but with url {0[source]}.'
+                     ).format(changelog))
+            else:
+                if source and source != changelog.source:
+                    click.echo(
+                        ('Warning! You there is package '
+                         '{0[namespace]}/{0[name]} in database, '
+                         'but with url {0[source]}.'
+                     ).format(changelog))
+                track_changelog(config, changelog)
                 actions.append('tracked')
 
-            track_changelog(config, changelog)
 
         if actions:
             click.echo('http://allmychanges.com/p/{namespace}/{name}/ was {actions}'.format(
