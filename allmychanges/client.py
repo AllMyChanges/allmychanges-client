@@ -220,14 +220,14 @@ def _add_changelogs(config, data):
                     actions.append('tracked')
         else:
             if is_tracked(changelog):
-                if source and source != changelog.source:
+                if source and source != changelog['source']:
                     click.echo(
                         ('Warning! You already tracking package '
                          '{0[namespace]}/{0[name]}, '
                          'but with url {0[source]}.'
                      ).format(changelog))
             else:
-                if source and source != changelog.source:
+                if source and source != changelog['source']:
                     click.echo(
                         ('Warning! You there is package '
                          '{0[namespace]}/{0[name]} in database, '
