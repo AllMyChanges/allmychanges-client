@@ -1,3 +1,9 @@
+0.6.1 (2015-02-28)
+==================
+
+* Fixed 'import' command's issue when there is
+  source field in input.
+
 0.6.0 (2015-02-23)
 ==================
 
