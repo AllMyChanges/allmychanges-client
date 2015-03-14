@@ -1,3 +1,8 @@
+0.6.2 (2015-03-14)
+==================
+
+* Fixed error which prevented new packages creation and tracking in `import` command.
+
 0.6.1 (2015-02-28)
 ==================
 
