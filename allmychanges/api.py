@@ -32,7 +32,7 @@ class AlreadyExists(RuntimeError):
 def _call(method, config, handle, data=None):
     token = get_option(config, 'token')
     base_url = get_option(config, 'base_url', _BASE_URL)
-    debug = get_option(config, 'debug', True)
+    debug = get_option(config, 'debug', False)
 
     if handle.startswith('http'):
         url = handle
