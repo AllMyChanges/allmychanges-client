@@ -1,8 +1,12 @@
 # coding: utf-8
-
+import sys
 import requests
 
-from urllib import urlencode
+if sys.version_info > (3,0):
+    from urllib.parse import urlencode
+else:
+    from urllib import urlencode
+
 from .config import get_option
 
 _BASE_URL = 'http://allmychanges.com/v1'
@@ -45,9 +49,9 @@ def _call(method, config, handle, data=None):
             description = response.reason
         else:
             description = ''
-        print u'{0} {1} → {2} {3}'.format(
+        print(u'{0} {1} → {2} {3}'.format(
             method.upper(), url,
-            response.status_code, description).encode('utf-8')
+            response.status_code, description).encode('utf-8'))
 
     if response.status_code >= 400:
         raise ApiError(response.reason, response)
