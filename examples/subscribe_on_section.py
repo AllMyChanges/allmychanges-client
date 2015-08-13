@@ -13,7 +13,7 @@ def main():
     subscribed_packages = [x['name'] for x in changelogs
                            if 'namespace' in x and x['namespace'] == section]
 
-    python_libraries = search_category(config, 'python')
+    python_libraries = search_category(config, section)
 
     all_cnt = len(python_libraries)
 

@@ -14,4 +14,5 @@ setup(version='0.6.2',
               'amch = allmychanges.client:main']},
       install_requires=['click>=2.2,<3.0',
                         'tablib>=0.10.0,<0.11.0',
-                        'requests>=2.3.0,<3.0.0'])
+                        'requests>=2.3.0,<3.0.0',
+                        'six==1.9.0'])

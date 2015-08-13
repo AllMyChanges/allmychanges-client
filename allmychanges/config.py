@@ -1,9 +1,6 @@
+# coding: utf-8
 
-import sys
-if sys.version_info > (3, 0):
-    from configparser import ConfigParser, NoOptionError
-else:
-    from ConfigParser import SafeConfigParser as ConfigParser, NoOptionError
+from six.moves.configparser import ConfigParser, NoOptionError
 
 _NotGiven = object()
 

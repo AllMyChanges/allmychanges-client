@@ -1,13 +1,8 @@
 # coding: utf-8
-import pprint
-import sys
 
 import requests
 
-if sys.version_info > (3, 0):
-    from urllib.parse import urlencode
-else:
-    from urllib import urlencode
+from six.moves.urllib.parse import urlencode
 
 from .config import get_option
 
