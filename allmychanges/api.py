@@ -1,8 +1,10 @@
 # coding: utf-8
+import pprint
 import sys
+
 import requests
 
-if sys.version_info > (3,0):
+if sys.version_info > (3, 0):
     from urllib.parse import urlencode
 else:
     from urllib import urlencode
@@ -10,7 +12,6 @@ else:
 from .config import get_option
 
 _BASE_URL = 'http://allmychanges.com/v1'
-
 
 class ApiError(RuntimeError):
     def __init__(self, message, response):
@@ -31,7 +32,7 @@ class AlreadyExists(RuntimeError):
 def _call(method, config, handle, data=None):
     token = get_option(config, 'token')
     base_url = get_option(config, 'base_url', _BASE_URL)
-    debug = get_option(config, 'debug', False)
+    debug = get_option(config, 'debug', True)
 
     if handle.startswith('http'):
         url = handle
@@ -100,3 +101,18 @@ def guess_source(config, namespace, name):
         dict(q='{0}/{1}'.format(namespace, name))))
     return [item['source']
             for item in response['results']]
+
+def search_category(config, namespace):
+    """
+    Returns packages of namespace(category)
+    :param config:
+    :param namespace:
+    :return:
+    """
+    response = _get(config, '/search-autocomplete/?' + urlencode(
+        dict(q=namespace)))
+
+    return [item for item in response['results']
+            if 'source' in item and
+            'namespace' in item and
+            item['namespace'] == namespace]
