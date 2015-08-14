@@ -1,5 +1,6 @@
 # coding: utf-8
 import sys
+
 import click
 import tablib
 
@@ -8,6 +9,7 @@ from .api import (get_changelogs,
                   create_changelog,
                   track_changelog,
                   guess_source)
+
 
 # first is default
 _IMPORT_EXPORT_FORMATS = ('csv', 'yaml', 'json', 'xls')
@@ -172,7 +174,6 @@ def _add_changelogs(config, data):
                     prompt_suffix='\n> ')
         return source
 
-
     for row in data:
         if not row:
             continue
@@ -236,7 +237,6 @@ def _add_changelogs(config, data):
                      ).format(changelog))
                 track_changelog(config, changelog)
                 actions.append('tracked')
-
 
         if actions:
             click.echo('http://allmychanges.com/p/{namespace}/{name}/ was {actions}'.format(

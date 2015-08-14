@@ -2,11 +2,10 @@
 
 import requests
 
-from urllib import urlencode
+from six.moves.urllib.parse import urlencode
 from .config import get_option
 
 _BASE_URL = 'http://allmychanges.com/v1'
-
 
 class ApiError(RuntimeError):
     def __init__(self, message, response):
@@ -45,9 +44,9 @@ def _call(method, config, handle, data=None):
             description = response.reason
         else:
             description = ''
-        print u'{0} {1} → {2} {3}'.format(
+        print(u'{0} {1} → {2} {3}'.format(
             method.upper(), url,
-            response.status_code, description).encode('utf-8')
+            response.status_code, description).encode('utf-8'))
 
     if response.status_code >= 400:
         raise ApiError(response.reason, response)
@@ -96,3 +95,16 @@ def guess_source(config, namespace, name):
         dict(q='{0}/{1}'.format(namespace, name))))
     return [item['source']
             for item in response['results']]
+
+def search_category(config, namespace):
+    """
+    Returns packages of namespace(category)
+    :param config:
+    :param namespace:
+    :return:
+    """
+
+    return _get(config, '/changelogs/',
+                     data=dict(namespace=namespace))
+
+
