@@ -1,4 +1,5 @@
 # coding: utf-8
+import pprint
 
 import requests
 
@@ -104,10 +105,12 @@ def search_category(config, namespace):
     :param namespace:
     :return:
     """
-    response = _get(config, '/search-autocomplete/?' + urlencode(
-        dict(q=namespace)))
 
-    return [item for item in response['results']
+    response = _get(config, '/changelogs/',
+                     data=dict(namespace=namespace))
+
+    return [item for item in response
             if 'source' in item and
             'namespace' in item and
             item['namespace'] == namespace]
+

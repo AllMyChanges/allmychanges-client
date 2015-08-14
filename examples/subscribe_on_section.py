@@ -22,6 +22,7 @@ def main():
             print("Process: %s of %s" % (i, all_cnt))
 
         if not (x.get('name') in subscribed_packages):
+            print("Track: ", x.get('name'))
             track_changelog(config, x)
 
 
