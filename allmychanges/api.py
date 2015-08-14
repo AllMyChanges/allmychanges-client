@@ -1,10 +1,8 @@
 # coding: utf-8
-import pprint
 
 import requests
 
 from six.moves.urllib.parse import urlencode
-
 from .config import get_option
 
 _BASE_URL = 'http://allmychanges.com/v1'
@@ -106,11 +104,7 @@ def search_category(config, namespace):
     :return:
     """
 
-    response = _get(config, '/changelogs/',
+    return _get(config, '/changelogs/',
                      data=dict(namespace=namespace))
 
-    return [item for item in response
-            if 'source' in item and
-            'namespace' in item and
-            item['namespace'] == namespace]
 
