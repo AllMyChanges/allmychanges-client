@@ -1,3 +1,9 @@
+0.7.0 (2015-08-20)
+==================
+
+* Added support Python 3.
+* Added example how to subscribe on all packages in given namespace.
+
 0.6.2 (2015-03-14)
 ==================
 
