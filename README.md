@@ -57,9 +57,17 @@ and will suggest it in same way as it does in `import` command.
 Using amch to import requirements.txt
 -------------------------------------
 
+### On Linux
     cat requirements.txt | grep -v '^-e' | sed -e 's/\([^=]\+\).*/python,\1/' -e '1 i\namespace,name' > data
     amch import --input data
 
+### On OSX
+
+OSX have a posix `sed` command which is more strict and don't allow to do what we want in one line. The easiest way to overcome this, is to install `gnu-sed` via brew and to use `gsed` instead of `sed`: 
+
+    brew install gnu-sed
+    cat requirements.txt | grep -v '^-e' | gsed -e 's/\([^=]\+\).*/python,\1/' -e '1 i\namespace,name' > data
+    amch import --input data
 
 Roadmap
 -------
