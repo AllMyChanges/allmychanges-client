@@ -1,6 +1,8 @@
 Command Line Client to AllMyChanges.com
 =======================================
 
+[![](https://allmychanges.com/p/python/allmychanges/badge/)](https://allmychanges.com/p/python/allmychanges/)
+
 Installation
 ------------
 
