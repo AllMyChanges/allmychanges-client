@@ -106,6 +106,6 @@ def search_category(config, namespace):
     :param namespace:
     :return:
     """
-    return _get(config, '/changelogs/', data=dict(namespace=namespace))
-
+    handle = '/changelogs/'
+    return _get(config, handle + '?' + urlencode(dict(namespace=namespace)))
 
