@@ -8,7 +8,7 @@ Installation
 
     pip install allmychanges
 
-Next, go to <http://allmychanges.com/account/token/> and obtain
+Next, go to <https://allmychanges.com/account/token/> and obtain
 your personal OAuth token.
 
 Write this token into the config file like that:
