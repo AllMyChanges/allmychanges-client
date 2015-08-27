@@ -1,3 +1,10 @@
+0.7.1 (2015-08-27)
+==================
+
+* Now you can untrack packages.
+Also, an example how to use this method was added.
+Thanks to Alexander Sapronov, a.k.a. @WarmongeR1.
+
 0.7.0 (2015-08-20)
 ==================
 
