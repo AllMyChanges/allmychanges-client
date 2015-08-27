@@ -86,6 +86,9 @@ def update_changelog(config, changelog, namespace, name, source):
                            source=source))
 
 
+def untrack_changelog(config, changelog):
+    return _post(config, changelog['resource_uri'] + 'untrack/')
+
 def track_changelog(config, changelog):
     return _post(config, changelog['resource_uri'] + 'track/')
 
@@ -103,8 +106,6 @@ def search_category(config, namespace):
     :param namespace:
     :return:
     """
-
-    return _get(config, '/changelogs/',
-                     data=dict(namespace=namespace))
+    return _get(config, '/changelogs/', data=dict(namespace=namespace))
 
 
