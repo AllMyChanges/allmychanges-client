@@ -13,11 +13,11 @@ def main():
     subscribed_packages = [x['name'] for x in changelogs
                            if 'namespace' in x and x['namespace'] == section]
 
-    python_libraries = search_category(config, section)
+    namespace_libraries = search_category(config, section)
 
-    all_cnt = len(python_libraries)
+    all_cnt = len(namespace_libraries)
 
-    for i, x in enumerate(python_libraries):
+    for i, x in enumerate(namespace_libraries):
         if i % 10 == 0:
             print("Process: %s of %s" % (i, all_cnt))
 
