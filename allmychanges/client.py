@@ -3,6 +3,7 @@ import sys
 
 import click
 import tablib
+import pkg_resources
 
 from .config import read_config
 from .api import (get_changelogs,
@@ -245,9 +246,19 @@ def _add_changelogs(config, data):
                 actions=' and '.join(actions)))
 
 
-@click.group()
-def main():
-    pass
+@click.group(invoke_without_command=True)
+@click.option('--version',
+              is_flag=True,
+              help='Show current version and exit.')
+@click.pass_context
+def main(ctx, version):
+    if version:
+        distribution = pkg_resources.get_distribution('allmychanges')
+        if distribution is not None:
+            click.echo('{0.key}: {0.version}'.format(
+                distribution))
+            sys.exit(0)
+
 
 main.add_command(export)
 main.add_command(_import)
