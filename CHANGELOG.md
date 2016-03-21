@@ -1,6 +1,12 @@
 ## Unreleased
 
 * Added option `--version`.
+* Option `--config` was removed and now you have to pass token
+via `--token` option or through `AMCH_TOKEN` environment variable.
+* Command `export` was renamed to `pull` and it's parameter
+`--output` was renamed to `--filename`.
+* Command `import` was renamed to `push` and it's parameter
+`--input` was renamed to `--filename`.
 
 ## 0.7.1 (2015-08-27)
 

@@ -4,16 +4,11 @@ from six.moves.configparser import ConfigParser, NoOptionError
 
 _NotGiven = object()
 
-def read_config(filename='allmychanges.cfg'):
-    config = ConfigParser()
-    config.read(filename)
-    return config
 
-
-def get_option(config, name, default=_NotGiven):
+def get_option(ctx, name, default=_NotGiven):
     try:
-        return config.get('allmychanges', name)
-    except NoOptionError:
+        return ctx.obj[name]
+    except KeyError:
         if default is _NotGiven:
             raise
         return default

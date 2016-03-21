@@ -3,9 +3,17 @@
 import requests
 
 from six.moves.urllib.parse import urlencode
-from .config import get_option
+
 
 _BASE_URL = 'http://allmychanges.com/v1'
+
+
+def force_str(text):
+    # TODO: use types from six
+    if isinstance(text, unicode):
+        return text.encode('utf-8')
+    return text
+
 
 class ApiError(RuntimeError):
     def __init__(self, message, response):
@@ -23,10 +31,10 @@ class AlreadyExists(RuntimeError):
         self.name = name
 
 
-def _call(method, config, handle, data=None):
-    token = get_option(config, 'token')
-    base_url = get_option(config, 'base_url', _BASE_URL)
-    debug = get_option(config, 'debug', False)
+def _call(method, opts, handle, data=None):
+    token = opts.get('token')
+    base_url = opts.get('base_url', _BASE_URL)
+    debug = opts.get('debug', False)
 
     if handle.startswith('http'):
         url = handle
@@ -34,10 +42,12 @@ def _call(method, config, handle, data=None):
         url = base_url + handle
 
     func = getattr(requests, method)
-    response = func(url,
-                    headers={'Authorization':
-                             'Bearer ' + token},
-                    data=data)
+    if token:
+        headers={'Authorization': 'Bearer ' + token}
+    else:
+        headers={}
+
+    response = func(url, headers=headers, data=data)
 
     if debug:
         if response.status_code >= 300:
@@ -58,17 +68,23 @@ _post = lambda *args, **kwargs: _call('post', *args, **kwargs)
 _put = lambda *args, **kwargs: _call('put', *args, **kwargs)
 
 
-def get_changelogs(config, **params):
+def get_changelogs(opts, **params):
     """Returns list of changelogs.
     Params could be: namespace and name or tracked=True
     """
     handle = '/changelogs/'
-    return _get(config, handle + '?' + urlencode(params))
-
-
-def create_changelog(config, namespace, name, source):
     try:
-        return _post(config, '/changelogs/',
+        params = {key: force_str(value)
+                  for key, value in params.items()}
+        url = handle + '?' + urlencode(params)
+    except:
+        import pdb; pdb.set_trace()  # DEBUG
+    return _get(opts, url)
+
+
+def create_changelog(opts, namespace, name, source):
+    try:
+        return _post(opts, '/changelogs/',
                      data=dict(namespace=namespace,
                                name=name,
                                source=source))
@@ -79,33 +95,32 @@ def create_changelog(config, namespace, name, source):
         raise
 
 
-def update_changelog(config, changelog, namespace, name, source):
-    return _put(config, changelog['resource_uri'],
+def update_changelog(opts, changelog, namespace, name, source):
+    return _put(opts, changelog['resource_uri'],
                  data=dict(namespace=namespace,
                            name=name,
                            source=source))
 
 
-def untrack_changelog(config, changelog):
-    return _post(config, changelog['resource_uri'] + 'untrack/')
+def untrack_changelog(opts, changelog):
+    return _post(opts, changelog['resource_uri'] + 'untrack/')
 
-def track_changelog(config, changelog):
-    return _post(config, changelog['resource_uri'] + 'track/')
+def track_changelog(opts, changelog):
+    return _post(opts, changelog['resource_uri'] + 'track/')
 
 
-def guess_source(config, namespace, name):
-    response = _get(config, '/search-autocomplete/?' + urlencode(
+def guess_source(opts, namespace, name):
+    response = _get(opts, '/search-autocomplete/?' + urlencode(
         dict(q='{0}/{1}'.format(namespace, name))))
     return [item['source']
             for item in response['results']]
 
-def search_category(config, namespace):
+def search_category(opts, namespace):
     """
     Returns packages of namespace(category)
-    :param config:
+    :param opts:
     :param namespace:
     :return:
     """
     handle = '/changelogs/'
-    return _get(config, handle + '?' + urlencode(dict(namespace=namespace)))
-
+    return _get(opts, handle + '?' + urlencode(dict(namespace=namespace)))

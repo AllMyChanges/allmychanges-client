@@ -5,12 +5,12 @@ import click
 import tablib
 import pkg_resources
 
-from .config import read_config
 from .api import (get_changelogs,
                   create_changelog,
                   track_changelog,
                   guess_source)
 
+NotGiven = object()
 
 # first is default
 _IMPORT_EXPORT_FORMATS = ('csv', 'yaml', 'json', 'xls')
@@ -22,6 +22,11 @@ def _possible_formats_str():
         ', '.join(_IMPORT_EXPORT_FORMATS[1:-1]),
         _IMPORT_EXPORT_FORMATS[-1])
 
+def _max_length(text, max_length):
+    if len(text) > max_length - 1:
+        return text[:max_length - 1] + u'…'
+    return text
+
 
 def _validate_format(ctx, param, value):
     if value not in _IMPORT_EXPORT_FORMATS:
@@ -30,28 +35,46 @@ def _validate_format(ctx, param, value):
     return value
 
 
-config_option = click.option(
-    '--config',
-    default='allmychanges.cfg',
-    help='Config filename. Default: allmychanges.cfg.')
-
 format_option = click.option(
     '--format',
     default=_IMPORT_EXPORT_FORMATS[0],
     callback=_validate_format,
-    help='Export format. Possible values: {0}.'.format(_possible_formats_str()))
+    help='Data format. Possible values: {0}.'.format(_possible_formats_str()))
 
 
-@click.command()
-@click.option('--output',
+@click.group(invoke_without_command=True)
+@click.option('--version',
+              is_flag=True,
+              help='Show current version and exit.')
+@click.option('--base-url',
+              help='Show current version and exit.')
+@click.option('--token',
+              help='Token to use when accessing AllMyChanges.com API.')
+@click.pass_context
+def cli(ctx, version, token, base_url):
+    if token:
+        ctx.obj['token'] = token
+
+    if base_url:
+        ctx.obj['base_url'] = base_url
+
+    if version:
+        distribution = pkg_resources.get_distribution('allmychanges')
+        if distribution is not None:
+            click.echo(u'{0.key}: {0.version}'.format(
+                distribution))
+            sys.exit(0)
+
+
+@cli.command()
+@click.option('--filename',
               help='Output filename. By default, data is written to the stdout.')
-@config_option
 @format_option
-def export(format, output, config):
-    """Exports packages from service into the file.
+@click.pass_context
+def pull(ctx, format, filename):
+    """Pulls packages from the service into the file.
     """
-    config = read_config(config)
-    changelogs = get_changelogs(config, tracked=True)
+    changelogs = get_changelogs(ctx.obj, tracked=True)
 
     fields = ('namespace', 'name', 'source')
 
@@ -63,23 +86,23 @@ def export(format, output, config):
     table = tablib.Dataset(*data)
     table.headers = fields
     data = getattr(table, format)
-    if output:
-        with open(output, 'wb') as f:
+    if filename:
+        with open(filename, 'wb') as f:
             f.write(data)
     else:
         click.echo(data)
 
 
-@click.command('import')
-@click.option('--input',
+@cli.command()
+@click.option('--filename',
               help='Input filename. By default, data is read from the stdin.')
 @format_option
-@config_option
-def _import(format, input, config):
-    """Import data from file into the service.
+@click.pass_context
+def push(ctx, format, filename):
+    """Gets data from a file and pushes it into the service.
     """
-    if input:
-        with open(input, 'rb') as f:
+    if filename:
+        with open(filename, 'rb') as f:
             data = f.read()
     else:
         data = sys.stdin.read()
@@ -87,13 +110,13 @@ def _import(format, input, config):
     dataset = tablib.Dataset()
     setattr(dataset, format, data)
 
-    _add_changelogs(config, dataset.dict)
+    _add_changelogs(ctx.obj, dataset.dict)
 
 
-@click.command()
+@cli.command()
 @click.argument('package', nargs=-1)
-@config_option
-def add(package, config):
+@click.pass_context
+def add(ctx, package):
     """Adds one or more packages.
 
     Here PACKAGE is a string in <namespace>/<package>
@@ -113,13 +136,12 @@ def add(package, config):
 
     rows = map(parse_package, package)
 
-    _add_changelogs(config, rows)
+    _add_changelogs(ctx.obj, rows)
 
 
-def _add_changelogs(config, data):
-    config = read_config(config)
+def _add_changelogs(opts, data):
 
-    tracked_changelogs = get_changelogs(config, tracked=True)
+    tracked_changelogs = get_changelogs(opts, tracked=True)
     tracked_changelogs = dict(
         ((ch['namespace'], ch['name']), ch)
         for ch in tracked_changelogs)
@@ -134,7 +156,7 @@ def _add_changelogs(config, data):
              'let\'s try to guess it.').format(
                  namespace, name))
         guesses = guess_source(
-            config, namespace=namespace, name=name)
+            opts, namespace=namespace, name=name)
 
         source = None
         while not source:
@@ -198,7 +220,7 @@ def _add_changelogs(config, data):
         #      и если нет, то вывести предупреждение
 
         # searching changelog in allmychange's database
-        changelogs = get_changelogs(config,
+        changelogs = get_changelogs(opts,
                                     namespace=namespace,
                                     name=name)
         if changelogs:
@@ -216,10 +238,10 @@ def _add_changelogs(config, data):
                 actions.append('skipped')
             else:
                 changelog = create_changelog(
-                    config, namespace, name, source)
+                    opts, namespace, name, source)
                 actions.append('created')
 
-                track_changelog(config, changelog)
+                track_changelog(opts, changelog)
                 actions.append('tracked')
         else:
             if is_tracked(changelog):
@@ -236,7 +258,7 @@ def _add_changelogs(config, data):
                          '{0[namespace]}/{0[name]} in database, '
                          'but with url {0[source]}.'
                      ).format(changelog))
-                track_changelog(config, changelog)
+                track_changelog(opts, changelog)
                 actions.append('tracked')
 
         if actions:
@@ -246,20 +268,41 @@ def _add_changelogs(config, data):
                 actions=' and '.join(actions)))
 
 
-@click.group(invoke_without_command=True)
-@click.option('--version',
-              is_flag=True,
-              help='Show current version and exit.')
+@cli.command()
+@click.argument('query')
 @click.pass_context
-def main(ctx, version):
-    if version:
-        distribution = pkg_resources.get_distribution('allmychanges')
-        if distribution is not None:
-            click.echo('{0.key}: {0.version}'.format(
-                distribution))
-            sys.exit(0)
+def search(ctx, query):
+    """Searches project or namespace on the service.
+
+    Here query can be a string in <namespace> or <namespace>/<package>
+    form.
+    """
+    if '/' in query:
+        namespace, name = query.split('/', 1)
+        changelogs = get_changelogs(ctx.obj,
+                                    namespace=namespace,
+                                    name=name)
+    else:
+        changelogs = get_changelogs(ctx.obj,
+                                    namespace=query)
+        if not changelogs:
+            changelogs = get_changelogs(ctx.obj,
+                                        name=query)
 
 
-main.add_command(export)
-main.add_command(_import)
-main.add_command(add)
+    data = []
+    for ch in changelogs:
+        data.append([
+            ch['namespace'],
+            ch['name'],
+            ch['latest_version'],
+            _max_length(ch['description'], 80) or 'no description'])
+
+    table = tablib.Dataset(*data)
+    table.headers = ['namespace', 'name', 'version', 'description']
+    click.echo(table.tsv)
+
+
+def main():
+    cli(auto_envvar_prefix='AMCH',
+        obj={})
