@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-setup(version='0.7.1',
+setup(version='0.8.0',
       name='allmychanges',
       description='A command line client to AllMyChanges.com.',
       license='BSD',

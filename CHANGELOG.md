@@ -1,4 +1,57 @@
-## Unreleased
+## 0.8.0 (2016-03-26)
+
+### Experimetal "tags" feature
+
+This is not in AllMyChanges.com's interface yet, but
+it's API now allows to tag some versions which you are
+using in some projects. For that purpose, three additional
+commands were added:
+
+#### tag
+
+This command tags given project version:
+
+```
+$ amch tag python/django 1.8.10 allmychanges.com
+```
+
+This command tells allmychanges, that I want to tag Django 1.8.10
+with tag `allmychanges.com`. After this, a `tags` or `versions`
+commands could provide this information.
+
+#### tags
+
+This command shows list of tags along with tagged projects.
+Consider I runned a command from the section above. Than `tags`
+output will be:
+
+```
+$ amch tags
+allmychanges.com: python/django:1.8.10
+```
+
+#### versions
+
+The other way to use information about tags is to view which versions
+for the project exists:
+
+```
+$ amch versions python/django
+1.10
+1.9.3
+1.9.2
+1.9.1
+1.9
+1.8.10: allmychanges.com
+1.8.9
+1.8.8
+1.8.7
+1.8.6
+```
+
+Here we instantly see how stale our environments.
+
+### Other changes
 
 * Added option `--version`.
 * Option `--config` was removed and now you have to pass token
