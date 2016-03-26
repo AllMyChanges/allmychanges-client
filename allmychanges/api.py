@@ -4,6 +4,11 @@ import requests
 
 from six.moves.urllib.parse import urlencode
 
+from .utils import (
+    changelog_id,
+    parse_project_params,
+    only_keys)
+
 
 _BASE_URL = 'http://allmychanges.com/v1'
 
@@ -78,13 +83,51 @@ def get_changelogs(opts, **params):
                   for key, value in params.items()}
         url = handle + '?' + urlencode(params)
     except:
-        import pdb; pdb.set_trace()  # DEBUG
+        # import pdb; pdb.set_trace()  # DEBUG
+        raise
     return _get(opts, url)
+
+
+def get_versions(opts, project, number=None):
+    handle = '/versions/'
+    if isinstance(project, basestring):
+        project_params = parse_project_params(project)
+    else:
+        project_params = only_keys(project, 'namespace', 'name')
+
+    params = {'changelog__' + name: value
+              for name, value in project_params.items()}
+
+    if number is not None:
+        params['number'] = number
+
+    url = handle + '?' + urlencode(params)
+    data = _get(opts, url)
+    results = data['results']
+    return results
+
+
+def tag_version(opts, version, tag):
+    pk = version['id']
+    return _post(opts,
+                 u'/versions/{0}/tag/'.format(pk),
+                 data=dict(name=tag))
+
+
+def get_tags(opts, project=None):
+    handle = '/tags/'
+    params = {}
+    if project:
+        params['project_id'] = changelog_id(project)
+    data = _get(opts, handle)
+    results = data['results']
+    return results
 
 
 def create_changelog(opts, namespace, name, source):
     try:
-        return _post(opts, '/changelogs/',
+        return _post(opts,
+                     '/changelogs/',
                      data=dict(namespace=namespace,
                                name=name,
                                source=source))
@@ -104,6 +147,7 @@ def update_changelog(opts, changelog, namespace, name, source):
 
 def untrack_changelog(opts, changelog):
     return _post(opts, changelog['resource_uri'] + 'untrack/')
+
 
 def track_changelog(opts, changelog):
     return _post(opts, changelog['resource_uri'] + 'track/')

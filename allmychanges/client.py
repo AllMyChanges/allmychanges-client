@@ -5,12 +5,23 @@ import click
 import tablib
 import pkg_resources
 
-from .api import (get_changelogs,
+from collections import defaultdict
+from .api import (ApiError,
+                  get_changelogs,
                   create_changelog,
                   track_changelog,
+                  get_versions,
+                  get_tags,
+                  tag_version,
                   guess_source)
+from .utils import (
+    changelog_id,
+    changelog_name,
+    parse_project_params)
+
 
 NotGiven = object()
+
 
 # first is default
 _IMPORT_EXPORT_FORMATS = ('csv', 'yaml', 'json', 'xls')
@@ -21,6 +32,7 @@ def _possible_formats_str():
         _IMPORT_EXPORT_FORMATS[0],
         ', '.join(_IMPORT_EXPORT_FORMATS[1:-1]),
         _IMPORT_EXPORT_FORMATS[-1])
+
 
 def _max_length(text, max_length):
     if len(text) > max_length - 1:
@@ -301,6 +313,153 @@ def search(ctx, query):
     table = tablib.Dataset(*data)
     table.headers = ['namespace', 'name', 'version', 'description']
     click.echo(table.tsv)
+
+
+@cli.command()
+@click.argument('project')
+@click.argument('version')
+@click.argument('tag')
+@click.pass_context
+def tag(ctx, project, version, tag):
+    """Marks some project's version with given tag.
+
+    Usually, tag is a project name where tagged version is used.
+    For example:
+
+    amch tag python/django 1.8.10 allmychanges.com
+
+    You can use command 'amch tags' to list all tags and corresponded projects.
+    """
+    try:
+        opts = ctx.obj
+
+        project_params = parse_project_params(project)
+        project_obj = get_changelogs(opts, **project_params)
+
+        if not project_obj:
+            click.echo(u'Project "{0}" not found.'.format(
+                project))
+        else:
+            if len(project_obj) > 1:
+                click.echo(u'More than one "{0}" were found:'.format(
+                    project))
+                for item in project_obj:
+                    click.echo(u'{namespace}/{name}'.format(**item))
+            else:
+                versions = get_versions(
+                    opts,
+                    project_obj[0],
+                    number=version)
+
+                if len(versions) == 0:
+                    click.echo(u'No such version')
+                    return 1
+
+                version_obj = versions[0]
+                tag_version(opts, version_obj, tag)
+    except ApiError as e:
+        report_api_error(e)
+
+
+@cli.command()
+@click.pass_context
+def tags(ctx):
+    """Outputs all tags along with tagged project versions.
+    """
+    try:
+        opts = ctx.obj
+        tags = get_tags(opts)
+        changelog_ids = set(tag['changelog']
+                            for tag in tags)
+        changelogs = get_changelogs(
+            opts,
+            id__in=','.join(map(unicode, changelog_ids)))
+
+        changelogs = {changelog_id(ch): ch for ch in changelogs}
+        tagged_changelogs = defaultdict(list)
+
+        for tag in tags:
+            tagged_changelogs[tag['name']].append(
+                (changelogs[tag['changelog']], tag['version_number'])
+            )
+
+        items = tagged_changelogs.items()
+        items.sort()
+
+        def tagged_project_name(item):
+            ch, number = item
+            return u'{0}:{1}'.format(
+                changelog_name(ch),
+                number)
+
+        for name, changelogs in items:
+            changelogs.sort()
+
+            click.echo(u'{tag}: {changelogs}'.format(
+                tag=name,
+                changelogs=u', '.join(
+                    map(tagged_project_name, changelogs))))
+
+    except ApiError as e:
+        report_api_error(e)
+
+
+@cli.command()
+@click.argument('project')
+@click.pass_context
+def versions(ctx, project):
+    """Outputs all known versions of a given project.
+
+    If project is tagged, then it's tags are printed too.
+    """
+    try:
+        opts = ctx.obj
+        project_params = parse_project_params(project)
+        project_obj = get_changelogs(opts, **project_params)
+
+        if not project_obj:
+            click.echo('Project "{0}" not found.'.format(project))
+        else:
+            project_obj = project_obj[0]
+
+        versions = get_versions(opts, project_obj)
+        tags = get_tags(opts, project_obj)
+
+        tag_by_version = defaultdict(list)
+
+        for t in tags:
+            tag_by_version[t['version_number']].append(t)
+
+        for version in versions:
+            number = version['number']
+            tags = tag_by_version[number]
+            if tags:
+                click.echo(u'{number}: {tags}'.format(
+                    number=number,
+                    tags=u', '.join(
+                        t['name'] for t in tags)))
+            else:
+                click.echo(number)
+
+    except ApiError as e:
+        report_api_error(e)
+
+
+def report_api_error(e):
+    if e.response.status_code == 500:
+        request_id = e.response.headers['x-request-id']
+        click.echo(
+            'API returned "Unhandled error" with 500 status code.\n'
+            'Please, write to support@allmychanges.com '
+            'and describe the situation.\n'
+            'Providing this unique code will help us '
+            'to investigate our logs: {0}'.format(request_id))
+    else:
+        try:
+            data = e.response.json()
+            click.echo(data['detail'])
+        except:
+            click.echo('Unknown error')
 
 
 def main():
