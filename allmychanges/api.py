@@ -10,7 +10,7 @@ from .utils import (
     only_keys)
 
 
-_BASE_URL = 'http://allmychanges.com/v1'
+_BASE_URL = 'https://allmychanges.com/v1'
 
 
 def force_str(text):

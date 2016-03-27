@@ -1,3 +1,10 @@
+## 0.8.1 (unreleased)
+
+### Fixes
+
+* API base url scheme was changed from `http` to `https` to fix
+  POST requests.
+
 ## 0.8.0 (2016-03-26)
 
 ### Experimetal "tags" feature
