@@ -129,6 +129,7 @@ def create_changelog(opts, namespace, name, source):
         return _post(opts,
                      '/changelogs/',
                      data=dict(namespace=namespace,
+                               downloader='git',
                                name=name,
                                source=source))
     except ApiError as e:
