@@ -180,8 +180,12 @@ def _add_changelogs(opts, data):
                         guesses, start=1):
                     click.echo('{0}) {1}'.format(idx, guess))
                 click.echo('0) enter manually')
+                click.echo('skip) skip this project')
 
                 def validate_choice(value):
+                    if value == 'skip':
+                        return value
+
                     try:
                         value = int(value)
                     except ValueError:
@@ -194,7 +198,9 @@ def _add_changelogs(opts, data):
 
                 choice = click.prompt('Please, select option [0-{0}]'.format(len(guesses)),
                                       value_proc=validate_choice)
-                if choice == 0:
+                if choice == 'skip':
+                    return 'skip'
+                elif choice == 0:
                     manually = True
                 else:
                     source = guesses[choice - 1]
