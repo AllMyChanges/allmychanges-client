@@ -20,6 +20,34 @@ from .utils import (
     parse_project_params)
 
 
+class CLIError(RuntimeError):
+    pass
+
+
+class ProjectNotFoundError(CLIError):
+    def __init__(self, project):
+        super(ProjectNotFoundError, self).__init__()
+        self.message = u'Project "{0}" not found.'.format(project)
+
+
+class MoreThanOneProjectFoundError(CLIError):
+    def __init__(self, projects):
+        super(MoreThanOneProjectFoundError, self).__init__()
+        self.projects = projects
+        self.message = u'More than one projects were found:' \
+                       + u'\n'.join(
+                           u'{namespace}/{name}'.format(**item)
+                           for item in projects)
+
+
+class VersionNotFoundError(CLIError):
+    def __init__(self, version):
+        super(VersionNotFoundError, self).__init__()
+        self.version = version
+        self.message = u'No such version'
+
+
+
 NotGiven = object()
 
 
@@ -121,8 +149,10 @@ def push(ctx, format, filename):
 
     dataset = tablib.Dataset()
     setattr(dataset, format, data)
+    parsed_data = dataset.dict
 
-    _add_changelogs(ctx.obj, dataset.dict)
+    _add_changelogs(ctx.obj, parsed_data)
+    _tag_versions(ctx.obj, parsed_data)
 
 
 @cli.command()
@@ -284,6 +314,46 @@ def _add_changelogs(opts, data):
                 namespace=namespace,
                 name=name,
                 actions=' and '.join(actions)))
+
+
+def _tag_version(opts, namespace, name, version, tag):
+    project_params = (('namespace', namespace),
+                      ('name', name))
+    project_params = {key: value
+                      for key, value in project_params
+                      if value is not None}
+
+    projects = get_changelogs(opts, **project_params)
+
+    if not projects:
+        raise ProjectNotFoundError(project)
+    else:
+        if len(projects) > 1:
+            raise MoreThanOneProjectFoundError(projects)
+        else:
+            versions = get_versions(
+                opts,
+                projects[0],
+                number=version)
+
+            if len(versions) == 0:
+                raise VersionNotFoundError(version)
+
+            version_obj = versions[0]
+            tag_version(opts, version_obj, tag)
+
+
+def _tag_versions(opts, data):
+    for item in data:
+        version = item['version']
+        tag = item['tag']
+        if version and tag:
+            _tag_version(opts,
+                         item['namespace'],
+                         item['name'],
+                         version,
+                         tag)
+
 
 
 @cli.command()
