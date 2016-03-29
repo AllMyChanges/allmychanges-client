@@ -13,6 +13,7 @@ setup(version='0.8.0',
           'console_scripts': [
               'amch = allmychanges.client:main']},
       install_requires=['click>=2.2,<3.0',
+                        'conditions>=0.1.0,<0.2.0',
                         'tablib>=0.10.0,<0.11.0',
                         'requests>=2.3.0,<3.0.0',
                         'six==1.9.0'])

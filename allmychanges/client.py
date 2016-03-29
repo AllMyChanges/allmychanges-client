@@ -6,6 +6,7 @@ import tablib
 import pkg_resources
 
 from collections import defaultdict
+from conditions import signal, handle
 from .api import (ApiError,
                   get_changelogs,
                   create_changelog,
@@ -41,8 +42,10 @@ class MoreThanOneProjectFoundError(CLIError):
 
 
 class VersionNotFoundError(CLIError):
-    def __init__(self, version):
+    def __init__(self, namespace, name, version):
         super(VersionNotFoundError, self).__init__()
+        self.namespace = namespace
+        self.name = name
         self.version = version
         self.message = u'No such version'
 
@@ -152,7 +155,14 @@ def push(ctx, format, filename):
     parsed_data = dataset.dict
 
     _add_changelogs(ctx.obj, parsed_data)
-    _tag_versions(ctx.obj, parsed_data)
+
+    def show_warning_and_countinue(e):
+        click.echo(u'{0}/{1}'.format(e.namespace, e.name))
+        click.echo(u'    Version {0} not found'.format(e.version))
+
+    with handle(VersionNotFoundError,
+                show_warning_and_countinue):
+        _tag_versions(ctx.obj, parsed_data)
 
 
 @cli.command()
@@ -326,10 +336,10 @@ def _tag_version(opts, namespace, name, version, tag):
     projects = get_changelogs(opts, **project_params)
 
     if not projects:
-        raise ProjectNotFoundError(project)
+        signal(ProjectNotFoundError(u'{0}/{1}'.format(namespace, name)))
     else:
         if len(projects) > 1:
-            raise MoreThanOneProjectFoundError(projects)
+            signal(MoreThanOneProjectFoundError(projects))
         else:
             versions = get_versions(
                 opts,
@@ -337,10 +347,13 @@ def _tag_version(opts, namespace, name, version, tag):
                 number=version)
 
             if len(versions) == 0:
-                raise VersionNotFoundError(version)
-
-            version_obj = versions[0]
-            tag_version(opts, version_obj, tag)
+                signal(
+                    VersionNotFoundError(namespace,
+                                         name,
+                                         version))
+            else:
+                version_obj = versions[0]
+                tag_version(opts, version_obj, tag)
 
 
 def _tag_versions(opts, data):
