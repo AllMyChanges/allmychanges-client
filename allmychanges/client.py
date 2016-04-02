@@ -428,24 +428,19 @@ def tag(ctx, project, version, tag):
         if not project_obj:
             click.echo(u'Project "{0}" not found.'.format(
                 project))
-        else:
-            if len(project_obj) > 1:
-                click.echo(u'More than one "{0}" were found:'.format(
-                    project))
-                for item in project_obj:
-                    click.echo(u'{namespace}/{name}'.format(**item))
-            else:
-                versions = get_versions(
-                    opts,
-                    project_obj[0],
-                    number=version)
 
-                if len(versions) == 0:
-                    click.echo(u'No such version')
-                    return 1
+        project_obj = project_obj[0]
 
-                version_obj = versions[0]
-                tag_version(opts, version_obj, tag)
+        def print_error(e):
+            click.echo('ERROR: {0.message}'.format(e))
+
+        with handle(CLIError, print_error):
+            _tag_version(opts,
+                         project_obj['namespace'],
+                         project_obj['name'],
+                         version,
+                         tag)
+
     except ApiError as e:
         report_api_error(e)
 
