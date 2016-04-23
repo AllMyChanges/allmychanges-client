@@ -7,14 +7,16 @@ import pkg_resources
 
 from collections import defaultdict
 from conditions import signal, handle
-from .api import (ApiError,
-                  get_changelogs,
-                  create_changelog,
-                  track_changelog,
-                  get_versions,
-                  get_tags,
-                  tag_version,
-                  guess_source)
+from .api import (
+    ApiError,
+    HTTPApiError,
+    get_changelogs,
+    create_changelog,
+    track_changelog,
+    get_versions,
+    get_tags,
+    tag_version,
+)
 from .utils import (
     changelog_id,
     changelog_name,
@@ -154,15 +156,20 @@ def push(ctx, format, filename):
     setattr(dataset, format, data)
     parsed_data = dataset.dict
 
-    _add_changelogs(ctx.obj, parsed_data)
+    try:
+        _add_changelogs(ctx.obj, parsed_data)
 
-    def show_warning_and_countinue(e):
-        click.echo(u'{0}/{1}'.format(e.namespace, e.name))
-        click.echo(u'    Version {0} not found'.format(e.version))
+        def show_warning_and_countinue(e):
+            click.echo(u'{0}/{1}'.format(e.namespace, e.name))
+            click.echo(u'    Version {0} not found'.format(e.version))
 
-    with handle(VersionNotFoundError,
-                show_warning_and_countinue):
-        _tag_versions(ctx.obj, parsed_data)
+        with handle(VersionNotFoundError,
+                    show_warning_and_countinue):
+            _tag_versions(ctx.obj, parsed_data)
+
+    except HTTPApiError as e:
+        if e.response.status_code == 401:
+            click.echo('Please provide valid OAuth token in AMCH_TOKEN environment variable')
 
 
 @cli.command()
@@ -202,59 +209,6 @@ def _add_changelogs(opts, data):
         return (changelog['namespace'],
                 changelog['name']) in tracked_changelogs
 
-    def ask_about_source(namespace, name):
-        click.echo(
-            ('\nNo source for {0}/{1} was given, '
-             'let\'s try to guess it.').format(
-                 namespace, name))
-        guesses = guess_source(
-            opts, namespace=namespace, name=name)
-
-        source = None
-        while not source:
-            manually = False
-
-            if guesses:
-                click.echo('Here is what I\'ve got:')
-                for idx, guess in enumerate(
-                        guesses, start=1):
-                    click.echo('{0}) {1}'.format(idx, guess))
-                click.echo('0) enter manually')
-                click.echo('skip) skip this project')
-
-                def validate_choice(value):
-                    if value == 'skip':
-                        return value
-
-                    try:
-                        value = int(value)
-                    except ValueError:
-                        raise click.BadParameter('You entered invalid number.')
-
-                    if value < 0 or value > len(guesses):
-                        raise click.BadParameter('Please, make a correct choice.')
-
-                    return value
-
-                choice = click.prompt('Please, select option [0-{0}]'.format(len(guesses)),
-                                      value_proc=validate_choice)
-                if choice == 'skip':
-                    return 'skip'
-                elif choice == 0:
-                    manually = True
-                else:
-                    source = guesses[choice - 1]
-            else:
-                manually = True
-
-            if manually:
-                source = click.prompt(
-                    ('Where could I find sources for {0}/{1}? '
-                     '(type "skip" to skip this package)')
-                    .format(namespace, name),
-                    prompt_suffix='\n> ')
-        return source
-
     for row in data:
         if not row:
             continue
@@ -289,18 +243,20 @@ def _add_changelogs(opts, data):
         actions = []
 
         if changelog is None:
-            if source is None:
-                source = ask_about_source(namespace, name)
 
-            if source == 'skip':
-                actions.append('skipped')
+            changelog = create_changelog(
+                opts,
+                namespace,
+                name,
+                source=source)
+
+            if source is None:
+                actions.append('added without source url')
             else:
-                changelog = create_changelog(
-                    opts, namespace, name, source)
                 actions.append('created')
 
-                track_changelog(opts, changelog)
-                actions.append('tracked')
+            track_changelog(opts, changelog)
+            actions.append('tracked')
         else:
             if is_tracked(changelog):
                 if source and source != changelog['source']:

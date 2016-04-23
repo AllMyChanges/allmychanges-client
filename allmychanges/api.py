@@ -3,7 +3,7 @@
 import requests
 
 from six.moves.urllib.parse import urlencode
-
+from conditions import signal, handle
 from .utils import (
     changelog_id,
     parse_project_params,
@@ -21,19 +21,38 @@ def force_str(text):
 
 
 class ApiError(RuntimeError):
+    pass
+
+
+class HTTPApiError(ApiError):
     def __init__(self, message, response):
         verbose_message = u'{0}: {1}'.format(message, response.content)
         super(ApiError, self).__init__(verbose_message)
         self.response = response
 
 
-class AlreadyExists(RuntimeError):
+class DownloaderAndSourceError(ApiError):
+    pass
+
+
+class NamespaceNameAlreadyExists(RuntimeError):
     def __init__(self, namespace, name):
-        super(AlreadyExists, self).__init__(
-            'Package {0}/{1} already exists'.format(
+        super(NamespaceNameAlreadyExists, self).__init__(
+            'Project {0}/{1} already exists'.format(
                 namespace, name))
         self.namespace = namespace
         self.name = name
+
+
+class SourceAlreadyExists(RuntimeError):
+    def __init__(self, url):
+        super(SourceAlreadyExists, self).__init__(
+            'Project with source {0} already exists'.format(url))
+        self.source = url
+
+
+class AuthenticationRequired(RuntimeError):
+    pass
 
 
 def _call(method, opts, handle, data=None):
@@ -64,7 +83,7 @@ def _call(method, opts, handle, data=None):
             response.status_code, description).encode('utf-8'))
 
     if response.status_code >= 400:
-        raise ApiError(response.reason, response)
+        signal(HTTPApiError(response.reason, response))
 
     return response.json()
 
@@ -73,18 +92,19 @@ _post = lambda *args, **kwargs: _call('post', *args, **kwargs)
 _put = lambda *args, **kwargs: _call('put', *args, **kwargs)
 
 
+def require_authentication(opts):
+    """This call will raise HTTPApiError if user is not authenticated."""
+    _get(opts, '/user/')
+
+
 def get_changelogs(opts, **params):
     """Returns list of changelogs.
     Params could be: namespace and name or tracked=True
     """
     handle = '/changelogs/'
-    try:
-        params = {key: force_str(value)
-                  for key, value in params.items()}
-        url = handle + '?' + urlencode(params)
-    except:
-        # import pdb; pdb.set_trace()  # DEBUG
-        raise
+    params = {key: force_str(value)
+              for key, value in params.items()}
+    url = handle + '?' + urlencode(params)
     return _get(opts, url)
 
 
@@ -108,6 +128,8 @@ def get_versions(opts, project, number=None):
 
 
 def tag_version(opts, version, tag):
+    require_authentication(opts)
+
     pk = version['id']
     return _post(opts,
                  u'/versions/{0}/tag/'.format(pk),
@@ -115,6 +137,8 @@ def tag_version(opts, version, tag):
 
 
 def get_tags(opts, project=None):
+    require_authentication(opts)
+
     handle = '/tags/'
     params = {}
     if project:
@@ -124,22 +148,39 @@ def get_tags(opts, project=None):
     return results
 
 
-def create_changelog(opts, namespace, name, source):
-    try:
-        return _post(opts,
-                     '/changelogs/',
-                     data=dict(namespace=namespace,
-                               downloader='git',
-                               name=name,
-                               source=source))
-    except ApiError as e:
+def create_changelog(opts,
+                     namespace,
+                     name,
+                     source=None,
+                     downloader=None):
+    require_authentication(opts)
+
+    def handle_api_error(e):
         data = e.response.json()
         if 'Changelog with this Namespace and Name already exists' in data.get('__all__', [''])[0]:
-            raise AlreadyExists(namespace, name)
-        raise
+            signal(NamespaceNameAlreadyExists(namespace, name))
+        elif 'already exists' in data.get('source', [''])[0]:
+            signal(SourceAlreadyExists(source))
+
+        signal(e)
+
+    with handle(HTTPApiError, handle_api_error):
+        data = dict(namespace=namespace,
+                    name=name)
+        if source and not downloader or \
+           downloader and not source:
+            signal(DownloaderAndSourceError('Both downloader and source are required'))
+
+        if source and downloader:
+            data['source'] = source
+            data['downloader'] = 'downloader'
+
+        return _post(opts, '/changelogs/', data=data)
 
 
 def update_changelog(opts, changelog, namespace, name, source):
+    require_authentication(opts)
+
     return _put(opts, changelog['resource_uri'],
                  data=dict(namespace=namespace,
                            name=name,
@@ -147,10 +188,14 @@ def update_changelog(opts, changelog, namespace, name, source):
 
 
 def untrack_changelog(opts, changelog):
+    require_authentication(opts)
+
     return _post(opts, changelog['resource_uri'] + 'untrack/')
 
 
 def track_changelog(opts, changelog):
+    require_authentication(opts)
+
     return _post(opts, changelog['resource_uri'] + 'track/')
 
 
@@ -159,6 +204,7 @@ def guess_source(opts, namespace, name):
         dict(q='{0}/{1}'.format(namespace, name))))
     return [item['source']
             for item in response['results']]
+
 
 def search_category(opts, namespace):
     """

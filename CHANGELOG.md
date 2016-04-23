@@ -1,5 +1,14 @@
 ## 0.8.1 (unreleased)
 
+### Major changes
+
+* Now projects can be pushed to the server without source
+URL or even name. But they will require further tuning
+in HTML interface.
+* Commands `push`, `tag`, `track` and `untrack` now require valid
+authentication. This also means that corresponding methods
+of Python API also fail without authentication.
+
 ### Fixes
 
 * API base url scheme was changed from `http` to `https` to fix
