@@ -92,6 +92,24 @@ _post = lambda *args, **kwargs: _call('post', *args, **kwargs)
 _put = lambda *args, **kwargs: _call('put', *args, **kwargs)
 
 
+def _get_all(opts, handle, **kwargs):
+    """Returns an iterator over all objects returned by
+    given handle. Traverses multiply pages, making
+    as many requests as requred.
+    """
+    response = _get(opts, handle, **kwargs)
+
+    while True:
+        for item in response['results']:
+            yield item
+
+        next_url = response.get('next')
+        if next_url is None:
+            break
+
+        response = _get(opts, next_url, **kwargs)
+
+
 def require_authentication(opts):
     """This call will raise HTTPApiError if user is not authenticated."""
     _get(opts, '/user/')
@@ -127,25 +145,27 @@ def get_versions(opts, project, number=None):
     return results
 
 
-def tag_version(opts, version, tag):
+def tag_version(opts, project, tag, version_number):
     require_authentication(opts)
 
-    pk = version['id']
+    uri = project['resource_uri']
     return _post(opts,
-                 u'/versions/{0}/tag/'.format(pk),
-                 data=dict(name=tag))
+                 uri + u'tag/',
+                 data=dict(name=tag,
+                           version=version_number))
 
 
 def get_tags(opts, project=None):
+    """Returns iterator over all tags.
+    """
     require_authentication(opts)
 
     handle = '/tags/'
     params = {}
     if project:
         params['project_id'] = changelog_id(project)
-    data = _get(opts, handle)
-    results = data['results']
-    return results
+
+    return _get_all(opts, handle)
 
 
 def create_changelog(opts,

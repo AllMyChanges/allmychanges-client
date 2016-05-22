@@ -1,5 +1,9 @@
 # coding: utf-8
+from __future__ import division, absolute_import
+from __future__ import print_function, unicode_literals
+
 import sys
+import re
 
 import click
 import tablib
@@ -20,6 +24,7 @@ from .api import (
 from .utils import (
     changelog_id,
     changelog_name,
+    make_table,
     parse_project_params)
 
 
@@ -138,6 +143,13 @@ def pull(ctx, format, filename):
         click.echo(data)
 
 
+def show_warning_about_missing_version(e):
+    click.echo(u'{0}/{1}'.format(e.namespace, e.name))
+    click.echo(u'    Version {0} not found. '
+               u'Tag will be bound to the version when '
+               u'it will be discovered.'.format(e.version))
+
+
 @cli.command()
 @click.option('--filename',
               help='Input filename. By default, data is read from the stdin.')
@@ -155,21 +167,21 @@ def push(ctx, format, filename):
     dataset = tablib.Dataset()
     setattr(dataset, format, data)
     parsed_data = dataset.dict
+    # filter out empty lines
+    parsed_data = filter(None, parsed_data)
 
     try:
         _add_changelogs(ctx.obj, parsed_data)
 
-        def show_warning_and_countinue(e):
-            click.echo(u'{0}/{1}'.format(e.namespace, e.name))
-            click.echo(u'    Version {0} not found'.format(e.version))
-
         with handle(VersionNotFoundError,
-                    show_warning_and_countinue):
+                    show_warning_about_missing_version):
             _tag_versions(ctx.obj, parsed_data)
 
     except HTTPApiError as e:
         if e.response.status_code == 401:
             click.echo('Please provide valid OAuth token in AMCH_TOKEN environment variable')
+        else:
+            raise
 
 
 @cli.command()
@@ -297,9 +309,10 @@ def _tag_version(opts, namespace, name, version, tag):
         if len(projects) > 1:
             signal(MoreThanOneProjectFoundError(projects))
         else:
+            project = projects[0]
             versions = get_versions(
                 opts,
-                projects[0],
+                project,
                 number=version)
 
             if len(versions) == 0:
@@ -307,9 +320,8 @@ def _tag_version(opts, namespace, name, version, tag):
                     VersionNotFoundError(namespace,
                                          name,
                                          version))
-            else:
-                version_obj = versions[0]
-                tag_version(opts, version_obj, tag)
+
+            tag_version(opts, project, tag, version)
 
 
 def _tag_versions(opts, data):
@@ -352,12 +364,14 @@ def search(ctx, query):
         data.append([
             ch['namespace'],
             ch['name'],
-            ch['latest_version'],
+            ch['latest_version'] or '',
             _max_length(ch['description'], 80) or 'no description'])
 
-    table = tablib.Dataset(*data)
-    table.headers = ['namespace', 'name', 'version', 'description']
-    click.echo(table.tsv)
+    table = make_table(
+        ['namespace', 'name', 'version', 'description'],
+        data,
+        no_wrap=['namespace', 'name', 'version'])
+    click.echo(table)
 
 
 @cli.command()
@@ -390,7 +404,11 @@ def tag(ctx, project, version, tag):
         def print_error(e):
             click.echo('ERROR: {0.message}'.format(e))
 
-        with handle(CLIError, print_error):
+        with handle(CLIError,
+                    print_error), \
+             handle(VersionNotFoundError,
+                    show_warning_about_missing_version):
+
             _tag_version(opts,
                          project_obj['namespace'],
                          project_obj['name'],
@@ -403,25 +421,37 @@ def tag(ctx, project, version, tag):
 
 @cli.command()
 @click.pass_context
-def tags(ctx):
+@click.option('--filter',
+              'filter_regex',
+              help='Show only tags matching regex.')
+def tags(ctx, filter_regex):
     """Outputs all tags along with tagged project versions.
     """
     try:
         opts = ctx.obj
-        tags = get_tags(opts)
+        tags = list(get_tags(opts))
+
         changelog_ids = set(tag['changelog']
                             for tag in tags)
-        changelogs = get_changelogs(
-            opts,
-            id__in=','.join(map(unicode, changelog_ids)))
+        changelog_ids = ','.join(map(unicode, changelog_ids))
+        changelogs = get_changelogs(opts, id__in=changelog_ids)
 
         changelogs = {changelog_id(ch): ch for ch in changelogs}
         tagged_changelogs = defaultdict(list)
 
+        if filter_regex:
+            filter_re = re.compile('^{0}$'.format(filter_regex))
+            passes_filter = filter_re.match
+        else:
+            passes_filter = lambda tag_name: True
+
+
         for tag in tags:
-            tagged_changelogs[tag['name']].append(
-                (changelogs[tag['changelog']], tag['version_number'])
-            )
+            tag_name = tag['name']
+            if passes_filter(tag_name):
+                tagged_changelogs[tag_name].append(
+                    (changelogs[tag['changelog']], tag['version_number'])
+                )
 
         items = tagged_changelogs.items()
         items.sort()
@@ -432,15 +462,24 @@ def tags(ctx):
                 changelog_name(ch),
                 number)
 
+        data = []
         for name, changelogs in items:
             changelogs.sort()
 
-            click.echo(u'{tag}: {changelogs}'.format(
-                tag=name,
-                changelogs=u', '.join(
-                    map(tagged_project_name, changelogs))))
+            data.append(
+                (name,
+                 ', '.join(
+                     map(tagged_project_name, changelogs))))
+
+        table = make_table(
+            ['tag', 'versions'],
+            data,
+            no_wrap=['tag'],
+            hrules=True)
+        click.echo(table)
 
     except ApiError as e:
+        raise
         report_api_error(e)
 
 
