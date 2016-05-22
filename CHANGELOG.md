@@ -1,4 +1,4 @@
-## 0.8.1 (unreleased)
+## 0.9.0 (2016-05-22)
 
 ### Major changes
 
@@ -12,7 +12,13 @@ of Python API also fail without authentication.
 ### Fixes
 
 * API base url scheme was changed from `http` to `https` to fix
-  POST requests.
+POST requests.
+
+### API Changes
+
+* Function get_tags now returns iterable over all tags instead
+of limited list of 10 tags.
+
 
 ## 0.8.0 (2016-03-26)
 

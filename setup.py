@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-setup(version='0.8.0',
+setup(version='0.9.0',
       name='allmychanges',
       description='A command line client to AllMyChanges.com.',
       license='BSD',
@@ -15,5 +15,6 @@ setup(version='0.8.0',
       install_requires=['click>=2.2,<3.0',
                         'conditions>=0.1.0,<0.2.0',
                         'tablib>=0.10.0,<0.11.0',
+                        'ptable>=0.9.2,<0.10.0',
                         'requests>=2.3.0,<3.0.0',
                         'six==1.9.0'])
