@@ -61,11 +61,12 @@ and will suggest it in same way as it does in `import` command.
 
 Using amch to import requirements.txt
 -------------------------------------
-
-    pip install pip2amch allmychanges
-    export AMCH_TOKEN=<your token>
-    pip2amch --tag myproject requirements.txt | amch push
-
+```
+pip install pip2amch allmychanges
+export AMCH_TOKEN=<your token>
+    
+pip2amch --tag myproject requirements.txt | amch push
+```
 Utility `pip2amch` generates CSV data, for `amch push`.
 
 Roadmap
